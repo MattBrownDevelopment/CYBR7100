@@ -1,4 +1,8 @@
 import os
+import logging
+import datetime
+import argparse
+import yaml
 from Item import Item
 from Datahandler import Cryptohandler as Cryptohandler
 from Datahandler import Hasher as Hasher
@@ -6,54 +10,138 @@ from Datahandler import Serializer as Serializer
 from DatabaseClient import DynamoDBClient
 
 
-def getKey(keyPath):
-    aesKey = Cryptohandler.makeKey(32,keyPath)
-    return aesKey
+class Demo:
+
+    configFilePath = ""
+
+    def __init__(self,configPath):
+        self.configFilePath = configPath
+        self.currentUser = os.getlogin()
+        logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%H:%M:%S', level=logging.INFO)
+        self.logger = logging.getLogger()
+        logging.getLogger().addHandler(logging.StreamHandler()) # Write to console in addition to file.
+        self.logger.info(msg="User = " + self.currentUser + ": STARTING SESSION")
+
+
+        self.loadConfig()
+        if not os.path.exists(self.keyPath):
+            self.logger.error(msg="User = " + self.currentUser + ": Key file path does not exist yet!")
+        else:
+            with open(self.keyPath, "rb") as file:
+                self.theKey = file.read()
+                self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
+        
+    def loadConfig(self):
+        if not os.path.exists(self.configFilePath):
+            self.logger.error(msg="User = " + self.currentUser + ": Could not find config file")
+        with open(self.configFilePath, 'r') as configStream:
+            try:
+                data = yaml.safe_load(configStream) 
+                self.keyPath = data['AESKeyPath']
+            except yaml.YAMLError as exc:
+                self.logger.error(msg="User = " + self.currentUser + ": Error reading config file")
+                self.logger.error(msg=str(exc))
+
+    def makeKey(self):
+        keyPath = self.keyPath
+        if os.path.exists(keyPath):
+            logging.error(msg="User = " + self.currentUser + ": Key file already exists, not overwriting!")
+        else:
+            Cryptohandler.makeKey(32,keyPath)
+            logging.info(msg="User = " + self.currentUser + ": New AES key created at " + keyPath)
+
+    def downloadAndShowData(self):
+        self.logger.info(msg="User = " + self.currentUser + ": Creating DB client")
+        try:
+            cloudHandler = DynamoDBClient(self.configFilePath)
+            self.logger.info(msg="User = " + self.currentUser + ": Created DB client")
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error creating DB client")
+            self.logger.error(msg=str(ex))
+        #Then download data off AWS
+        try:
+            self.logger.info(msg="User = " + self.currentUser + ": Starting DB download")
+            allData = cloudHandler.downloadAllObjects()
+            self.logger.info(msg="User = " + self.currentUser + ": DB Download finished")
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error downloading from DB")
+            self.logger.error(msg=str(ex))
+  
+
+        # Make a decrypter object
+        decryptor = Cryptohandler(str(self.theKey))
+
+        # Make a variable to hold decrypted data
+        dataHolder = []
+
+        self.logger.info(msg="User = " + self.currentUser + ": Starting decryption of data")
+        # Loop through all the downloaded objects, and append them to the dataHolder.
+        for element in allData:
+            decryptedData = decryptor.decrypt(element['Item'].value)
+            dataHolder.append(decryptedData)
+
+
+        serlilazer = Serializer()
+
+        #Reassemble the data
+        
+        self.logger.info(msg="User = " + self.currentUser + ": There were " + str(len(dataHolder)) + " items in the database")
+        print("\n")
+        for decryptedItem in dataHolder:
+            decodedObj = serlilazer.unserializeObject(str.encode(decryptedItem))
+            decodedObj.giveValues()
+            print("\n")
+
     
-    #keyPhrase = input(" Select a 32 character passphrase ")
-    #if len(keyPhrase) != 32:
-    #    print("uh oh")
-    #else:
-    # Need a byte representation for encryption
-     #   return str.encode(keyPhrase)
 
-# This file is the entry point into the program. Eventually it wall call the GUI. For now it is testing the backend stuff locally.
+    def addItem(self):
+        make = input("Enter make ")
+        model = input("Enter model ")
+        number = input("Enter serial number ")
+        value = input("Enter value ")
 
+        tempItem = Item(make,model,number,value)
+        serlilazer = Serializer()
+        self.logger.info(msg="User = " + self.currentUser + ": Item created, serializing item")
+        serialData = serlilazer.serializeObject(tempItem)
 
-make = input("Enter make ")
-model = input("Enter model ")
-number = input("Enter serial number ")
-value = input("Enter value ")
-
-fakeItem = Item(make,model,number,value)
-#fakeItem.giveValues()
-theKey = getKey("myKey.txt")
-
-serlilazer = Serializer()
-serialData = serlilazer.serializeObject(fakeItem)
-
-encryptor = Cryptohandler(str(theKey))
-data = encryptor.encrypt(serialData)
-
-cloudHandler = DynamoDBClient("config.yml")
-cloudHandler.putObjectInTable(data)
-#Then store the encrypted data on AWS
+        encryptor = Cryptohandler(str(self.theKey))
+        self.logger.info(msg="User = " + self.currentUser + ": Item encrypted")
+        data = encryptor.encrypt(serialData)
+        
+        self.logger.info(msg="User = " + self.currentUser + ": Attempting to add item to DB")
+        try:
+            cloudHandler = DynamoDBClient(self.configFilePath)
+            cloudHandler.putObjectInTable(data)
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error adding item to DB")
+            self.logger.error(str(ex))
 
 
+        
 
-#Then download data off AWS
-allData = cloudHandler.downloadAllObjects()
-#print(type(allData))
-#Then decrypt data from AWS
-decryptor = Cryptohandler(str(theKey))
-decryptedData = decryptor.decrypt(allData[0]['Item'].value)
+        
 
 
-#Reassemble the data
-finalObj = serlilazer.unserializeObject(str.encode(decryptedData))
-print("Giving values")
-finalObj.giveValues()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config",help="Path to config file")
+    parser.add_argument("action",help="Add or show")
+    args = parser.parse_args()
+
+    if not os.path.exists(args.config):
+        print("Could not find config file! Please ensure the path exists")
+
+    demoApp = Demo(args.config)
+
+    if args.action.lower() == "show":
+        demoApp.downloadAndShowData()
+    elif args.action.lower() == "add":
+        demoApp.addItem()
+    elif args.action.lower() == "makekey":
+        demoApp.makeKey()
+    else:
+        print("Invalid option!")
 
 
-
-
+  

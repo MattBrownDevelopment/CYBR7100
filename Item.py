@@ -25,22 +25,16 @@ class Item:
         if not value.isnumeric:
             print("ERROR: Value must be a numeric. EXITING")
 
-        print("New item is made")
-        print("Make is: " + make)
-        print("Model is: " + model)
-        print("Serial is: " + serial)
-        print("Value is: " + value)
-
         self.itemMake = make
         self.itemModel = model
         self.itemSerial = serial
         self.itemValue = value
 
     def giveValues(self):
-        print(self.itemMake)
-        print(self.itemModel)
-        print(self.itemSerial)
-        print(self.itemValue)
+        print("Make: " + self.itemMake)
+        print("Model " + self.itemModel)
+        print("Serial " + self.itemSerial)
+        print("Value: " + self.itemValue)
 
     def getMake(self):
         return self.itemMake

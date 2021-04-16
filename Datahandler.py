@@ -47,7 +47,7 @@ class Cryptohandler:
         return key
         
 
-
+# Not implemented yet
 class Hasher:
 
     @staticmethod
