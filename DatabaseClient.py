@@ -36,7 +36,7 @@ class DynamoDBClient:
     # Function to check if DynamoDB table already exists
     def tableExists(self):
         try:
-            response = self.dynamoClient.describe_table(TableName=self.tableName)
+            self.dynamoClient.describe_table(TableName=self.tableName)
             self.logger.info(msg="User = " + self.currentUser + ": DB Table exists")
             return True
         except self.dynamoClient.exceptions.ResourceNotFoundException:
@@ -47,7 +47,7 @@ class DynamoDBClient:
     def putObjectInTable(self,data):
         if(self.tableExists()):
             try:
-                response = self.dynamoClient.put_item(TableName=self.tableName, Item={'Item':{'B':data}})
+                self.dynamoClient.put_item(TableName=self.tableName, Item={'Item':{'B':data}})
                 return True
             except Exception as ex:
                 self.logger.error(msg="User = " + self.currentUser + ": Error adding object to table")
