@@ -1,6 +1,6 @@
-from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto import Random
+from Cryptodome.Cipher import AES
+from Cryptodome.Random import get_random_bytes
+from Cryptodome import Random
 import hashlib
 import base64
 import pickle

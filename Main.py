@@ -8,18 +8,19 @@ from Datahandler import Cryptohandler as Cryptohandler
 from Datahandler import Hasher as Hasher
 from Datahandler import Serializer as Serializer
 from DatabaseClient import DynamoDBClient
-
+import boto3
 
 class Demo:
 
     configFilePath = ""
+    logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%H:%M:%S', level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.addHandler(logging.StreamHandler()) # Write to console in addition to file.
 
     def __init__(self,configPath):
         self.configFilePath = configPath
         self.currentUser = os.getlogin()
-        logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%H:%M:%S', level=logging.INFO)
-        self.logger = logging.getLogger()
-        logging.getLogger().addHandler(logging.StreamHandler()) # Write to console in addition to file.
+
         self.logger.info(msg="User = " + self.currentUser + ": STARTING SESSION")
 
 
@@ -58,6 +59,7 @@ class Demo:
         except Exception as ex:
             self.logger.error(msg="User = " + self.currentUser + ": Error creating DB client")
             self.logger.error(msg=str(ex))
+            return
         #Then download data off AWS
         try:
             self.logger.info(msg="User = " + self.currentUser + ": Starting DB download")
@@ -66,7 +68,12 @@ class Demo:
         except Exception as ex:
             self.logger.error(msg="User = " + self.currentUser + ": Error downloading from DB")
             self.logger.error(msg=str(ex))
-  
+            return
+
+        # Error getting data
+        if allData == None:
+            self.logger.info(msg="User = " + self.currentUser + ": Unable to retrieve data")
+            return
 
         # Make a decrypter object
         decryptor = Cryptohandler(str(self.theKey))
@@ -92,7 +99,6 @@ class Demo:
             decodedObj.giveValues()
             print("\n")
 
-    
 
     def addItem(self):
         make = input("Enter make ")
@@ -113,12 +119,35 @@ class Demo:
         try:
             cloudHandler = DynamoDBClient(self.configFilePath)
             cloudHandler.putObjectInTable(data)
+            self.logger.info(msg="User = " + self.currentUser + ": Item added successfully to DB!")
         except Exception as ex:
             self.logger.error(msg="User = " + self.currentUser + ": Error adding item to DB")
             self.logger.error(str(ex))
 
 
-        
+    def makeTable(self):
+
+        self.logger.info(msg="User = " + self.currentUser + ": Creating DB client")
+        try:
+            cloudHandler = DynamoDBClient(self.configFilePath)
+            self.logger.info(msg="User = " + self.currentUser + ": Created DB client")
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error creating DB client")
+            self.logger.error(msg=str(ex))
+
+        try:
+            self.logger.info(msg="User = " + self.currentUser + ": Creating DB table")
+            cloudHandler.createTable()
+            self.logger.info(msg="User = " + self.currentUser + ": DB Table Made")
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error creating DB")
+            self.logger.error(msg=str(ex))
+
+    def setup(self):
+        self.logger.info(msg="User = " + self.currentUser + ": Running setup tasks")
+        self.makeKey()
+        self.makeTable()
+        self.logger.info(msg="User = " + self.currentUser + ": Setup Complete!")
 
         
 
@@ -140,6 +169,10 @@ if __name__ == "__main__":
         demoApp.addItem()
     elif args.action.lower() == "makekey":
         demoApp.makeKey()
+    elif args.action.lower() == "maketable":
+        demoApp.makeTable()
+    elif args.action.lower() == "setup":
+        demoApp.setup()
     else:
         print("Invalid option!")
 

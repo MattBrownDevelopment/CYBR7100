@@ -1,4 +1,4 @@
-region: us-east-2
+region:
 secretKey:
 accessKey:
 TableName: 
