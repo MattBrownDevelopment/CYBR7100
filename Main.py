@@ -13,7 +13,7 @@ import boto3
 class Demo:
 
     configFilePath = ""
-    logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%H:%M:%S', level=logging.INFO)
+    logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%Y:%m:%d:%H:%M:%S', level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.StreamHandler()) # Write to console in addition to file.
 

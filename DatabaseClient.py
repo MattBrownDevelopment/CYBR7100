@@ -12,7 +12,6 @@ class DynamoDBClient:
     accessKey = ""
     tableName = ""
     logger = logging.getLogger(__name__)
-    #logging.basicConfig(filename="database.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%H:%M:%S', level=logging.INFO)
     logger.addHandler(logging.StreamHandler()) # Write to console in addition to file.
 
 
