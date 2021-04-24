@@ -10,12 +10,14 @@ from Datahandler import Serializer as Serializer
 from DatabaseClient import DynamoDBClient
 import boto3
 
-class Demo:
+class Main:
 
     configFilePath = ""
     logging.basicConfig(filename="applog.log",filemode='a',format='%(asctime)s,%(levelname)s, %(message)s',datefmt='%Y:%m:%d:%H:%M:%S', level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.addHandler(logging.StreamHandler()) # Write to console in addition to file.
+    configIsLoaded = False
+    keyIsLoaded = False
 
     def __init__(self,configPath):
         self.configFilePath = configPath
@@ -31,17 +33,43 @@ class Demo:
             with open(self.keyPath, "rb") as file:
                 self.theKey = file.read()
                 self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
+                self.configIsLoaded = True
+
+    # Overloaded init for GUI use
+    def __init__(self):
+        self.currentUser = os.getlogin()
+        self.logger.info(msg="User = " + self.currentUser + ": STARTING SESSION")
+
+    def loadKey(self):
+        if not os.path.exists(self.keyPath):
+            self.logger.error(msg="User = " + self.currentUser + ": Key file path does not exist yet!")
+        else:
+            with open(self.keyPath, "rb") as file:
+                self.theKey = file.read()
+                self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
+                self.keyIsLoaded = True
         
     def loadConfig(self):
         if not os.path.exists(self.configFilePath):
             self.logger.error(msg="User = " + self.currentUser + ": Could not find config file")
+        else:
+            self.configIsLoaded = True
         with open(self.configFilePath, 'r') as configStream:
             try:
                 data = yaml.safe_load(configStream) 
                 self.keyPath = data['AESKeyPath']
+                self.keyIsLoaded = True
             except yaml.YAMLError as exc:
                 self.logger.error(msg="User = " + self.currentUser + ": Error reading config file")
                 self.logger.error(msg=str(exc))
+
+    # Used by GUI to prevent actions before config or key is loaded
+    def readyToOperate(self):
+        if self.configIsLoaded and self.keyIsLoaded:
+            return True
+        else:
+            return False
+
 
     def makeKey(self):
         keyPath = self.keyPath
@@ -91,13 +119,16 @@ class Demo:
         serlilazer = Serializer()
 
         #Reassemble the data
-        
+        reassembledData = []
         self.logger.info(msg="User = " + self.currentUser + ": There were " + str(len(dataHolder)) + " items in the database")
         print("\n")
         for decryptedItem in dataHolder:
             decodedObj = serlilazer.unserializeObject(str.encode(decryptedItem))
+            reassembledData.append(decodedObj)
             decodedObj.giveValues()
             print("\n")
+        
+        return reassembledData
 
 
     def addItem(self):
@@ -107,6 +138,26 @@ class Demo:
         value = input("Enter value ")
 
         tempItem = Item(make,model,number,value)
+        serlilazer = Serializer()
+        self.logger.info(msg="User = " + self.currentUser + ": Item created, serializing item")
+        serialData = serlilazer.serializeObject(tempItem)
+
+        encryptor = Cryptohandler(str(self.theKey))
+        self.logger.info(msg="User = " + self.currentUser + ": Item encrypted")
+        data = encryptor.encrypt(serialData)
+        
+        self.logger.info(msg="User = " + self.currentUser + ": Attempting to add item to DB")
+        try:
+            cloudHandler = DynamoDBClient(self.configFilePath)
+            cloudHandler.putObjectInTable(data)
+            self.logger.info(msg="User = " + self.currentUser + ": Item added successfully to DB!")
+        except Exception as ex:
+            self.logger.error(msg="User = " + self.currentUser + ": Error adding item to DB")
+            self.logger.error(str(ex))
+
+    # Overloaded method for GUI use
+    def addItem(self,itemToAdd):
+        tempItem = itemToAdd
         serlilazer = Serializer()
         self.logger.info(msg="User = " + self.currentUser + ": Item created, serializing item")
         serialData = serlilazer.serializeObject(tempItem)
@@ -161,7 +212,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.config):
         print("Could not find config file! Please ensure the path exists")
 
-    demoApp = Demo(args.config)
+    demoApp = Main(args.config)
 
     if args.action.lower() == "show":
         demoApp.downloadAndShowData()

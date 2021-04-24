@@ -22,7 +22,7 @@ class Item:
             print("Value is unspecified, defaulting to 0")
             value = 0
         
-        if not value.isnumeric:
+        if not value.isnumeric():
             print("ERROR: Value must be a numeric. EXITING")
 
         self.itemMake = make
@@ -47,5 +47,24 @@ class Item:
 
     def getValue(self):
         return self.itemValue
+
+    @staticmethod
+    def validateItem(make,model,serial,value):
+        if not make:
+            return False
+        
+        if not model:
+            return False
+
+        if not serial: 
+            return False
+        
+        if not value:
+            return False
+        
+        if not value.isnumeric():
+            return False
+        
+        return True
     
     
