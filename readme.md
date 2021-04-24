@@ -25,11 +25,32 @@ TableName: Choose a name for your DynamoDB table
 
 AESKeyPath: Path to a location to store your keyfile
 
+LedgerName: Choose a name for your QLDB ledger
+
 
 
 Note that your AES Key file will be required to decrypt and encrypt data. DO NOT LOSE THIS.
 
-3: First run
+3: Using the Application
+
+The application supports both a Command Line Interface and a GUI mode.
+
+To use the GUI, simply type in:
+
+python3 GUIMain.py 
+
+You will then need to first press the "Load Config" button and choose your config file created in step 2. You may experience temporary freezing while the program connects to the QLDB ledger service. Then press the "Run Setup" button to generate the AES key, DynamoDB, and QLDB ledger. The "Run Setup" button only needs to be done once per configuration, but pressing it again will not hurt anything.
+
+Then fill out the 4 text fields to add an item to your database. Make, Model, and Serial number fields are freeform, but must be filled in. Value is restricted to numeric types, and must be filled in. Press the "validate" button to ensure your data is properly formatted. If you get an error, fix your data. Then press the "Submit to DB" button to add your item to the database. You may add more items. 
+
+When you are want to view your data, ensure your config is loaded then press the "Query and Update Values" button. This will download all items from the database, decrypt them, and display them. NOTE: No local data is saved, so ensure you write down anything you need.
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following section is for Command Line Usage
+
+4: First run
 
 After your config file has been made and you have installed the dependencies, you are ready to run the setup function.
 This will automatically connect to AWS, create a DynamoDB table, and create an AES key.
@@ -43,7 +64,7 @@ Example, assuming config.yml is in the same directory as main.py
 python3 main.py "config.yml" setup
 
 
-4: Adding items to the database
+5: Adding items to the database
 
 To add items to the DynamoDB, simply run the script with the "add" command. Example:
 
@@ -52,7 +73,7 @@ python3 main.py "config.yml" add
 You will be prompted to enter the make, model, serial number, and value of your item.
 The program will then encrypt this information with the AES key specified in your config file and and store it in the DynamoDB table specified by your config file.
 
-5: Showing items in the database:
+6: Showing items in the database:
 
 To view the decrypted items in the DynamoDM, simply run the script with the "show" command. Example:
 

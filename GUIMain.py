@@ -47,6 +47,12 @@ class GUI:
         userInput = self.valueInput.get()
         return userInput
 
+    def clearTextboxes(self):
+        self.makeInput.delete('0',END)
+        self.modelInput.delete('0',END)
+        self.serialInput.delete('0',END)
+        self.valueInput.delete('0',END)
+
 
     def validateClicked(self):
 
@@ -93,6 +99,7 @@ class GUI:
         if self.backendFunctions.readyToOperate():
             self.backendFunctions.addItem(theItem)
             self.statusbar.config(text="Item added to database!")
+            self.clearTextboxes()
         else:
             self.statusbar.config(text="Please ensure the config is loaded!")
 

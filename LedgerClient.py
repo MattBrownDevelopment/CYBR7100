@@ -7,7 +7,6 @@ import logging
 from time import sleep
 from qldb_helpers.block_address import *
 from qldb_helpers.qldb_string_utils import *
-from qldb_helpers.verifier import *
 from amazon.ion.simpleion import loads, dumps
 
 # Class to handle QLDB ledger functions

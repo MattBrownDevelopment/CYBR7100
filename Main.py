@@ -251,6 +251,7 @@ class Main:
         self.makeKey()
         self.makeTable()
         self.makeLedger()
+        self.loadKey()
         self.logger.info(msg="User = " + self.currentUser + ": Setup Complete!")
 
         
