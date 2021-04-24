@@ -3,11 +3,12 @@ import botocore
 import yaml
 import os
 import logging
+import uuid
 
 class DynamoDBClient:
 
     region = ""
-    service = "dynamodb" #Currently only DynamoDB is used in this program
+    service = "dynamodb"
     secretKey = ""
     accessKey = ""
     tableName = ""
@@ -43,10 +44,10 @@ class DynamoDBClient:
             return False
     
 
-    def putObjectInTable(self,data):
+    def putObjectInTable(self,data,transactionID):
         if(self.tableExists()):
             try:
-                self.dynamoClient.put_item(TableName=self.tableName, Item={'Item':{'B':data}})
+                self.dynamoClient.put_item(TableName=self.tableName, Item={'Item':{'B':data},'TransactionID':{'S':str(transactionID)}})
                 return True
             except Exception as ex:
                 self.logger.error(msg="User = " + self.currentUser + ": Error adding object to table")
@@ -54,6 +55,19 @@ class DynamoDBClient:
                 return False
         else:
             self.logger.error(msg="User = " + self.currentUser + ": Table does not exist, can not add item to table!")
+            return False
+
+    def deleteObjectFromTable(self,data,transactionID):
+        if(self.tableExists()):
+            try:
+                self.dynamoClient.delete_item(TableName=self.tableName,Item={'Item':{'B':data},'TransactionID':{'S':str(transactionID)}})
+                return True
+            except Exception as ex:
+                self.logger.error(msg="User = " + self.currentUser + ": Error deleting object from table")
+                self.logger.info(ex)
+                return False
+        else:
+            self.logger.error(msg="User = " + self.currentUser + ": Table does not exist, can not delete item from table!")
             return False
 
     def downloadAllObjects(self):
@@ -66,7 +80,7 @@ class DynamoDBClient:
                 # This part lets it get all objects, as there is not currently a way to query all objects with the boto3 API
                 while 'LastEvaluatedKey' in response:
                     response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-                    data.extend(response['Items'])
+                    data.extend(response['Items'],response['TransactionID'])
                 return data
             else:
                 self.logger.error(msg="User = " + self.currentUser + ": Table does not exist")
@@ -82,12 +96,21 @@ class DynamoDBClient:
                         {
                             'AttributeName': 'Item',
                             'KeyType': 'HASH'  #Partition key
+
+                        },
+                        {
+                            'AttributeName': 'TransactionID',
+                            'KeyType': 'RANGE'
                         }
                     ],
                     AttributeDefinitions=[
                         {
                             'AttributeName': 'Item',
                             'AttributeType': 'B'
+                        },
+                        {
+                            'AttributeName': 'TransactionID',
+                            'AttributeType': 'S'
                         }
 
                     ],

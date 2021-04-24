@@ -13,11 +13,19 @@ Then, copy config.yml.template to another file, such as config.yml
 
 Fill out the values in the config file as follows:
 
+
+
 region: What region you want to deploy to, such as: us-east-2
+
 secretKey: Paste your AWS SECRET key here
+
 accessKey: Paste your AWS ACCESS key here
+
 TableName: Choose a name for your DynamoDB table
+
 AESKeyPath: Path to a location to store your keyfile
+
+
 
 Note that your AES Key file will be required to decrypt and encrypt data. DO NOT LOSE THIS.
 

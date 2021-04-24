@@ -8,7 +8,9 @@ from Datahandler import Cryptohandler as Cryptohandler
 from Datahandler import Hasher as Hasher
 from Datahandler import Serializer as Serializer
 from DatabaseClient import DynamoDBClient
+from LedgerClient import LedgerClient
 import boto3
+import uuid
 
 class Main:
 
@@ -63,6 +65,13 @@ class Main:
                 self.logger.error(msg="User = " + self.currentUser + ": Error reading config file")
                 self.logger.error(msg=str(exc))
 
+    def initLedger(self):
+        self.ledgerClient = LedgerClient(self.configFilePath)
+        if not self.ledgerClient.ledgerExists():
+            self.logger.error(msg="User = " + self.currentUser + ": Could not find ledger, creating it now")
+            self.ledgerClient.createAndFinalizeLedger()
+
+
     # Used by GUI to prevent actions before config or key is loaded
     def readyToOperate(self):
         if self.configIsLoaded and self.keyIsLoaded:
@@ -106,6 +115,15 @@ class Main:
         # Make a decrypter object
         decryptor = Cryptohandler(str(self.theKey))
 
+        # Check if transaction IDs exists in ledger
+        transIDs = []
+        for element in allData:
+            # If it doesn't exist, skip over it because it isn't authentic
+            if not self.ledgerClient.findTransaction(element['TransactionID']):
+                allData.remove(element) # Remove it from our list of items to show. Currently leaving it in the DynamoDB.
+                self.logger.critical(msg="User = " + self.currentUser + ": Transaction NOT found in ledger!")
+
+
         # Make a variable to hold decrypted data
         dataHolder = []
 
@@ -130,6 +148,10 @@ class Main:
         
         return reassembledData
 
+    # Generate a UUID to use as a transaction ID in the blockchain ledger
+    def generateTransactionID(self):
+        return str(uuid.uuid4())
+
 
     def addItem(self):
         make = input("Enter make ")
@@ -147,13 +169,24 @@ class Main:
         data = encryptor.encrypt(serialData)
         
         self.logger.info(msg="User = " + self.currentUser + ": Attempting to add item to DB")
+        transactionID = self.generateTransactionID()
         try:
             cloudHandler = DynamoDBClient(self.configFilePath)
-            cloudHandler.putObjectInTable(data)
+            cloudHandler.putObjectInTable(data, transactionID)
             self.logger.info(msg="User = " + self.currentUser + ": Item added successfully to DB!")
         except Exception as ex:
             self.logger.error(msg="User = " + self.currentUser + ": Error adding item to DB")
             self.logger.error(str(ex))
+
+        # Now add entry to ledger
+        self.ledgerClient.writeTransaction(transactionID)
+
+        # Ensure ledger write succesful
+        if not self.ledgerClient.findTransaction(transactionID):
+            self.logger.error(msg="User = " + self.currentUser + ": Could not add to ledger, deleting DB entry")
+            cloudHandler.deleteObjectFromTable(data, transactionID)
+        else:
+            self.logger.info(msg="User = " + self.currentUser + ": Item and transaction added")
 
     # Overloaded method for GUI use
     def addItem(self,itemToAdd):
@@ -167,13 +200,25 @@ class Main:
         data = encryptor.encrypt(serialData)
         
         self.logger.info(msg="User = " + self.currentUser + ": Attempting to add item to DB")
+        transactionID = self.generateTransactionID()
         try:
             cloudHandler = DynamoDBClient(self.configFilePath)
-            cloudHandler.putObjectInTable(data)
+            cloudHandler.putObjectInTable(data, transactionID)
             self.logger.info(msg="User = " + self.currentUser + ": Item added successfully to DB!")
         except Exception as ex:
             self.logger.error(msg="User = " + self.currentUser + ": Error adding item to DB")
             self.logger.error(str(ex))
+
+        # Now add entry to ledger
+        self.ledgerClient.writeTransaction(transactionID)
+
+        # Ensure ledger write succesful
+        if not self.ledgerClient.findTransaction(transactionID):
+            self.logger.error(msg="User = " + self.currentUser + ": Could not add to ledger, deleting DB entry")
+            cloudHandler.deleteObjectFromTable(data, transactionID)
+        else:
+            self.logger.info(msg="User = " + self.currentUser + ": Item and transaction added")
+
 
 
     def makeTable(self):
@@ -194,10 +239,18 @@ class Main:
             self.logger.error(msg="User = " + self.currentUser + ": Error creating DB")
             self.logger.error(msg=str(ex))
 
+    # Ensures the ledger and table exists and ledger is finished creating
+    def makeLedger(self):
+        self.ledgerClient = LedgerClient(self.configFilePath)
+        self.ledgerClient.createAndFinalizeLedger()
+ 
+
+
     def setup(self):
         self.logger.info(msg="User = " + self.currentUser + ": Running setup tasks")
         self.makeKey()
         self.makeTable()
+        self.makeLedger()
         self.logger.info(msg="User = " + self.currentUser + ": Setup Complete!")
 
         

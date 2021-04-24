@@ -14,10 +14,13 @@ class GUI:
     def loadConfigClicked(self):
         filepath = filedialog.askopenfilename(initialdir = "",title = "Choose Your Config File",filetypes = (("Yml files","*.yml"),("all files","*.*")))
         if filepath:
+            self.statusbar.config(text="Loading config")
             # Update internal variable for the filepath
             self.backendFunctions.configFilePath = filepath
             self.backendFunctions.loadConfig()
             self.backendFunctions.loadKey()
+            self.statusbar.config(text="Loading ledger")
+            self.backendFunctions.initLedger()
             self.statusbar.config(text="Config Loaded")
             self.configLoaded = True
         else:
@@ -84,6 +87,8 @@ class GUI:
     def submitClicked(self):
         if self.validateClicked():
             theItem = Item(self.getMakeInput(),self.getModelInput(),self.getSerialInput(),self.getValueInput())
+        else:
+            return
 
         if self.backendFunctions.readyToOperate():
             self.backendFunctions.addItem(theItem)
@@ -95,6 +100,7 @@ class GUI:
 
     def setupClicked(self):
         if self.configLoaded:
+            self.statusbar.config(text="Running setup, this may take a moment for the ledger to create")
             self.backendFunctions.setup()
             self.statusbar.config(text="Setup is complete")
         else:
