@@ -37,11 +37,6 @@ class Main:
                 self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
                 self.configIsLoaded = True
 
-    # Overloaded init for GUI use
-    def __init__(self):
-        self.currentUser = os.getlogin()
-        self.logger.info(msg="User = " + self.currentUser + ": STARTING SESSION")
-
     def loadKey(self):
         if not os.path.exists(self.keyPath):
             self.logger.error(msg="User = " + self.currentUser + ": Key file path does not exist yet!")
@@ -115,6 +110,8 @@ class Main:
         # Make a decrypter object
         decryptor = Cryptohandler(str(self.theKey))
 
+        self.initLedger()
+
         # Check if transaction IDs exists in ledger
         transIDs = []
         for element in allData:
@@ -153,7 +150,7 @@ class Main:
         return str(uuid.uuid4())
 
 
-    def addItem(self):
+    def addItemCLI(self):
         make = input("Enter make ")
         model = input("Enter model ")
         number = input("Enter serial number ")
@@ -179,6 +176,7 @@ class Main:
             self.logger.error(str(ex))
 
         # Now add entry to ledger
+        self.initLedger()
         self.ledgerClient.writeTransaction(transactionID)
 
         # Ensure ledger write succesful
@@ -271,7 +269,7 @@ if __name__ == "__main__":
     if args.action.lower() == "show":
         demoApp.downloadAndShowData()
     elif args.action.lower() == "add":
-        demoApp.addItem()
+        demoApp.addItemCLI()
     elif args.action.lower() == "makekey":
         demoApp.makeKey()
     elif args.action.lower() == "maketable":
