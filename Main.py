@@ -21,21 +21,21 @@ class Main:
     configIsLoaded = False
     keyIsLoaded = False
 
-    def __init__(self,configPath):
-        self.configFilePath = configPath
+    def __init__(self,configPath=None):
         self.currentUser = os.getlogin()
 
         self.logger.info(msg="User = " + self.currentUser + ": STARTING SESSION")
 
-
-        self.loadConfig()
-        if not os.path.exists(self.keyPath):
-            self.logger.error(msg="User = " + self.currentUser + ": Key file path does not exist yet!")
-        else:
-            with open(self.keyPath, "rb") as file:
-                self.theKey = file.read()
-                self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
-                self.configIsLoaded = True
+        if configPath:
+            self.configFilePath = configPath
+            self.loadConfig()
+            if not os.path.exists(self.keyPath):
+                self.logger.error(msg="User = " + self.currentUser + ": Key file path does not exist yet!")
+            else:
+                with open(self.keyPath, "rb") as file:
+                    self.theKey = file.read()
+                    self.logger.info(msg="User = " + self.currentUser + ": Key loaded into memory")
+                    self.configIsLoaded = True
 
     def loadKey(self):
         if not os.path.exists(self.keyPath):
@@ -107,6 +107,7 @@ class Main:
             self.logger.info(msg="User = " + self.currentUser + ": Unable to retrieve data")
             return
 
+        self.loadKey()
         # Make a decrypter object
         decryptor = Cryptohandler(str(self.theKey))
 
